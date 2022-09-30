@@ -16,6 +16,8 @@ from scipy.io.wavfile import write
 import chardet
 import tgt
 
+rel_path = "./"
+
 raw_vocab ='ABCDEFGHIJKLMNOPQRSTUVWXYZÇÃÀÁÂÊÉÍÓÔÕÚÛabcdefghijklmnopqrstuvwxyzçãàáâêéíóôõúû()\-\'\n\?\./,\'\": '
 clean_vocab ='ABCDEFGHIJKLMNOPQRSTUVWXYZÇÃÀÁÂÊÉÍÓÔÕÚÛabcdefghijklmnopqrstuvwxyzçãàáâêéíóôõúû\-\'\n\? '
 
@@ -214,7 +216,7 @@ class AutomaticSegmentation:
 		    #		stderr=subprocess.DEVNULL)
 
     def clean(self):
-        TMP = os.path.join(base_dir,'tmp/')
+        TMP = os.path.join(rel_path,'tmp/')
         if('win' not in sys.platform.lower()):
             subprocess.run(['rm',\
                     '-f',\
@@ -246,7 +248,7 @@ class AutomaticSegmentation:
                     '>NUL 2>&1']))
 
     def align(self, audio_file, text_align):
-        TC = TextConverter()
+        TC = TextConverter(rel_path)
         self.clean_tg()
 
         with open(text_align, 'r') as tf:
@@ -262,13 +264,14 @@ class AutomaticSegmentation:
                     audio_file,
                     req_in,
                     req_out,
+                    rel_path,
                     aligner)
 
-        TC.align(text, audio_file, req_in, req_out, aligner=aligner, hmmdefs=hmmdefs)
+        TC.align(text, audio_file, req_in, req_out, rel_path, rel_path+"tmp/", aligner=aligner, hmmdefs=hmmdefs)
         print("alinhamento feito")
 
         # Formata o arquivo de saida para o formato desejado
-        TC.format_output(text1, audio_file, req_out, aligner)
+        TC.format_output(text1, audio_file, req_out, rel_path, aligner)
         print("saidas geradas")
 
         self.alignment_tg = self.audio_file.replace(".wav", ".TextGrid")
@@ -528,7 +531,7 @@ class AutomaticSegmentation:
                 w = lw.split(';')[1]
                 sentences += ' ' + w
             #print("sentences:", sentences)
-            g2p_words = Conv.convert_sentence(sentences)
+            g2p_words = Conv.convert_sentence(sentences, rel_path)
             sentences = sentences.split()
             #print("sentences converted:", g2p_words)
             g2p_words = g2p_words.split()
@@ -816,10 +819,10 @@ class AutomaticSegmentation:
         method_boundaries = []
         for name in names_method:
             tier = Method_tg.get_tier_by_name(name)
-            if "metodo" in name:
-                #print("tier", name, "adicionada:", tier)
+            if boundary_type in name:
+                print("tier", name, "adicionada:", tier)
                 for interval in tier.intervals:
-                    #print("intervalo do metodo", interval)
+                    print("intervalo do metodo", interval)
                     method_boundaries.append([interval, '0'])
                 Annot_tg.add_tier(tier)
 
@@ -845,14 +848,12 @@ class AutomaticSegmentation:
         total = 0
         hits = 0
         for mb in method_boundaries:
-            nb = tgt.core.Interval(start_time=mb[0].start_time, end_time=mb[0].end_time, text=mb[1])
-            print("concordancia:", nb)
+            #print("concordancia:", nb)
             if mb[1] == '1':
                 hits += 1
             if mb[1] == '0':
                 I += 1
             total += 1
-            agreement_tier.add_interval(nb)
 
         if end_flag:
             hits += 1
@@ -865,13 +866,13 @@ class AutomaticSegmentation:
         print("acertos:", hits, '/', total, '=', hits/total)
         print("métrica SER:", '(I+R)/(C+R)', SER)
 
-        Annot_tg.add_tier(agreement_tier)
-        tgt.io.write_to_file(Annot_tg, annot_tg.replace(".TextGrid", "_concat.TextGrid"), format='long', encoding='utf-8')
+        #Annot_tg.add_tier(agreement_tier)
+        #tgt.io.write_to_file(Annot_tg, annot_tg.replace(".TextGrid", "_concat.TextGrid"), format='long', encoding='utf-8')
         return SER
 
 def main():
-    name = "SP_DID_089"
-    segment_number = "2"
+    name = "SP_D2_255"
+    segment_number = "1"
 
     path = "./" + name + "_segmentado/" + name + "_" + segment_number + "/"
     audio_file = path + name + "_clipped_" + segment_number + ".wav"
@@ -887,8 +888,25 @@ def main():
     Segmentation = AutomaticSegmentation(path, audio_file, locs_file)
     Segmentation.generate_words_file(locs_file)
     Segmentation.align(audio_file, text_align)
-    Segmentation.find_silences("./", path, wavs_path, 22050, 0.3, 10.0, 5.0, 37.0, '', 1)
-    Segmentation.find_boundaries(locs_file2, alignment_tg, silences_file, 0.3, 0.88, 0.70, 3, 0.3, 10)
+    # 1 parâmetro: threshold para silêncio: 37.0 (valor em dB, positivo)
+    db_threshold = 37.0
+    Segmentation.find_silences("./", path, wavs_path, 22050, 0.3, 10.0, 5.0, db_threshold, '', 1)
+    # 6 parâmetros: tamanho da janela: 0.3                      (em s, deve ser positivo e não deve ser grande, talvez no max 1s)
+    #               threshold da 1a heurística (porcentagem
+    #                   da maior diferença de taxas de fala
+    #                   de janelas consecutivas para caracterizar
+    #                   DSR): 0.88                              (no intervalo [0, 1] e não muito pequeno, talvez no min 0.5 ou 0.6)
+    #               threshold da 2a heurística: 0.70            (no intervalo [0, 1], sempre abaixo do parâmetro anterior)
+    #               duração de segundos sem DSRs na primeira heuristica para contemplar a 2a: 3 (em s, positivo)
+    #               duração de silêncio para caracterizar pausa: 0.3 (em s, talvez no mínimo 0.15 e no max 1s)
+    #               palavras consecutivas sem DSR na 1a heuristica para contemplar a 2a: 10 (número inteiro talvez entre 5 e 20)
+    window_size = 0.3
+    delta1 = 0.88
+    delta2 = 0.70
+    interval_size = 3
+    silence_threshold = 0.3
+    min_words_h2 = 10
+    Segmentation.find_boundaries(locs_file2, alignment_tg, silences_file, window_size, delta1, delta2, interval_size, silence_threshold, min_words_h2)
     Segmentation.ser(annot_tg, method_tg, "NTB")
 
 if __name__ == "__main__":

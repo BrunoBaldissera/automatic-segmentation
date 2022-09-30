@@ -24,3 +24,13 @@
 
 ## 2) python Segmentador.py
 ### Esse script gera uma série de arquivos que são usados internamente pelo método e um arquivo principal de saída (SP_DID_043_clipped_1_novo.TextGrid) com as fronteiras identificadas pelo método
+
+# ----------------------
+
+## Se for usar o arquivo do colab, basta organizar a pasta do inquérito conforme anteriormente, criar uma célula com os comandos (substituindo SP_DID_043 pelo seu inquérito e o id do segundo comando pelo id da sua pasta compactada compartilhada para leitura para todos com o link)
+
+### !cd /content/drive/MyDrive/; tar -zcvf SP_DID_043_segmentado.tar.gz SP_DID_043_segmentado
+### !gdown --id 1-G2k2XJaO_Jvd4mQ37avufXihS0gKRLI 
+### !tar xzvf SP_DID_043_segmentado.tar.gz
+
+## O primeiro comando compacta sua pasta do drive em um .tar.gz, o segundo baixa a pasta compactada e o terceiro descompacta a pasta no ambiente local

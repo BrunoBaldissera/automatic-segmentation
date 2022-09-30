@@ -229,8 +229,8 @@ class TextConverter():
 
 			#subprocess.run(command)
 	@staticmethod
-	def format_output(text, filename, out_format, aligner='HTK'):
-		tc = TextConverter()
+	def format_output(text, filename, out_format, rel_path, aligner='HTK'):
+		tc = TextConverter(rel_path)
 		if(aligner == 'HTK'):
 			if(out_format == 'palavra'):		
 				tc.generate_textgrid(filename, repl=text)
