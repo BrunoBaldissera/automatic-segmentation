@@ -378,7 +378,7 @@ class AutomaticSegmentation:
           if duration_segment > max_duration:
             max_duration = duration_segment
 
-          men_duration = mean_duration + duration_segment
+          mean_duration = mean_duration + duration_segment
         print(' -> Wrote %d segment wav files' % len(segments))
         print(' -> Progress: %d segments, %.2f hours, %.2f sec avg' % (
           len(all_segments), total_duration / 3600, total_duration / len(all_segments)))
